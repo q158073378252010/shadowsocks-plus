@@ -19,6 +19,8 @@ import (
 
 	ss "github.com/shadowsocks-plus/ssplus-core-go/shadowsocks"
 	"github.com/shadowsocks-plus/kcptun-integration/kcptun"
+
+	"github.com/shadowsocks-plus/ssplus-server-httpapi/ssphttpapi"
 )
 
 const (
@@ -327,6 +329,8 @@ func main() {
 	var cmdConfig ss.Config
 	var printVer bool
 	var core int
+	var httpListenAddr string
+	var httpAccessKey string
 
 	flag.BoolVar(&printVer, "version", false, "print version")
 	flag.StringVar(&configFile, "c", "config.json", "specify config file")
@@ -336,6 +340,8 @@ func main() {
 	flag.StringVar(&cmdConfig.Method, "m", "", "encryption method, default: aes-256-cfb")
 	flag.IntVar(&core, "core", 0, "maximum number of CPU cores to use, default is determinied by Go runtime")
 	flag.BoolVar((*bool)(&debug), "d", false, "print debug message")
+	flag.StringVar(&httpListenAddr,"api","","http api listen address")
+	flag.StringVar(&httpAccessKey,"hkey","","http api access key")
 
 	flag.Parse()
 
@@ -380,6 +386,16 @@ func main() {
 		go run(port, password, config.Auth)
 		portNumeric,_ = strconv.Atoi(port)
 		go kcptun.RunKCPTun("0.0.0.0:"+strconv.Itoa(portNumeric+10000),"127.0.0.1:"+port)
+	}
+
+	if httpListenAddr!="" {
+		if httpAccessKey=="" {
+			log.Fatal("HTTP API Access Key not specified.")
+		}
+		ssphttpapi.SetAccessKey(httpAccessKey)
+		ssphttpapi.RunSS=run
+		ssphttpapi.RunKCPTun=kcptun.RunKCPTun
+		ssphttpapi.StartServer(httpListenAddr)
 	}
 
 	waitSignal()
